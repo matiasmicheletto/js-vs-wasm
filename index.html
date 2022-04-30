@@ -1,0 +1,86 @@
+<html>
+
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="description" content="Performance of JavaScript vs WebAssembly scripts">
+        <meta name="author" content="Matias Micheletto">
+
+        <title>JS vs WASM Demo</title>
+
+        <script type="text/javascript" src="js/vendor/highcharts.js"></script>
+        <script type="text/javascript" src="js/vendor/series-label.js"></script>
+        <script type="text/javascript" src="js/vendor/lodash.min.js"></script>
+    </head>
+
+    <body>
+        <div style="padding:20px">
+            <h1>Performance comparison of JS vs WASM</h1>
+            <form>
+                <h4>Simulation configuration</h4>
+                <span>Simulation runs: </span><input id="steps" type="number" value="50">
+                <br><br>
+                <span>Min. iterations: </span><input id="iterMin" type="number" value="10000">
+                <br><br>
+                <span>Max. iterations: </span><input id="iterMax" type="number" value="10000000">
+                <br><br>
+                Status: <span id="status">Loading optimizers...</span>
+                <br><br>
+                <input id="runBtn" type="button" value="Run!">
+            </form>
+            <div id="elapsedChart"></div>
+            <div id="errorChart"></div>
+            <div id="resultText"></div>
+        </div>
+
+        <script type="text/javascript" src="js/custom/optimizer.js"></script>
+        <script type="text/javascript" src="js/custom/jsOptimizer.js"></script>
+        <script type="text/javascript" src="js/custom/wasmOptimizer.js"></script>
+        <script type="text/javascript" src="js/custom/experiment.js"></script>
+        <script type="text/javascript" src="js/custom/presenter.js"></script>
+        <script type="text/javascript">   
+            
+            // The presenter is the glue between the experiment and the UI.
+            var elapsedChart = document.getElementById("elapsedChart");
+            var errorChart = document.getElementById("errorChart");     
+            var presenter = new Presenter(elapsedChart, errorChart);
+            
+            // The experiment is the core of the application. It handles the simulation and the optimizers.
+            var experiment = new Experiment();
+
+            // Configure the action of the run button.
+            var runBtn = document.getElementById("runBtn");
+            runBtn.disabled = true;
+            runBtn.addEventListener('click', () => { // When clicked, reset the experiment and run it.
+                presenter.clear();
+                document.getElementById("status").innerHTML = "Running simulation...";
+                runBtn.disabled = true;
+                experiment.run({
+                    steps: parseInt(document.getElementById("steps").value), // Number of simulation runs.
+                    iterMin: parseInt(document.getElementById("iterMin").value), // Number of iterations to begin with.
+                    iterMax: parseInt(document.getElementById("iterMax").value) // Number of iterations to end with.
+                }).then(results => {
+                    // When the simulation is done, update the UI.
+                    document.getElementById("status").innerHTML = "Ready.";
+                    presenter.updateResults(results);
+                    runBtn.disabled = false;
+                }).catch(error => {
+                    window.alert(error);
+                });    
+            });
+
+            // Initialize the experiment.
+            var job = [ // Each optimizer initialization is asynchronous.
+                experiment.addOptimizer(new JsOptimizer()),                
+                experiment.addOptimizer(new WasmOptimizer())
+            ];
+            // When the optimizers are loaded, enable the run button.
+            Promise.all(job).then(res => {
+                runBtn.disabled = false;
+                document.getElementById("status").innerHTML = "Ready.";
+            });
+
+        </script>
+    </body>
+
+</html>
